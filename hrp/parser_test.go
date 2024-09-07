@@ -2,12 +2,107 @@ package hrp
 
 import (
 	"net/url"
+	"reflect"
 	"sort"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+type TestStruct struct {
+	Name  string
+	Age   int
+	Email string
+}
+
+type NestedStruct struct {
+	Info *TestStruct
+	Tag  string
+}
+
+func TestParser_Parse(t *testing.T) {
+	p := newParser()
+	variablesMapping := map[string]interface{}{
+		"name":  "Alice",
+		"email": "alice@example.com",
+	}
+
+	tests := []struct {
+		name    string
+		raw     interface{}
+		want    interface{}
+		wantErr bool
+	}{
+		{
+			name: "Parse struct",
+			raw: TestStruct{
+				Name:  "${name}",
+				Age:   30,
+				Email: "$email",
+			},
+			want: TestStruct{
+				Name:  "Alice",
+				Age:   30,
+				Email: "alice@example.com",
+			},
+			wantErr: false,
+		},
+		{
+			name: "Parse struct pointer",
+			raw: &TestStruct{
+				Name:  "${name}",
+				Age:   30,
+				Email: "$email",
+			},
+			want: &TestStruct{
+				Name:  "Alice",
+				Age:   30,
+				Email: "alice@example.com",
+			},
+			wantErr: false,
+		},
+		{
+			name: "Parse nested struct",
+			raw: NestedStruct{
+				Info: &TestStruct{
+					Name:  "${name}",
+					Age:   30,
+					Email: "$email",
+				},
+				Tag: "test",
+			},
+			want: NestedStruct{
+				Info: &TestStruct{
+					Name:  "Alice",
+					Age:   30,
+					Email: "alice@example.com",
+				},
+				Tag: "test",
+			},
+			wantErr: false,
+		},
+		{
+			name:    "Parse nil pointer",
+			raw:     (*TestStruct)(nil),
+			want:    nil,
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := p.Parse(tt.raw, variablesMapping)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.Parse() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.Parse() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
 func TestBuildURL(t *testing.T) {
 	var preparedURL *url.URL

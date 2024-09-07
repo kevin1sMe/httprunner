@@ -205,24 +205,12 @@ func Interface2Float64(i interface{}) (float64, error) {
 func TypeNormalization(raw interface{}) interface{} {
 	rawValue := reflect.ValueOf(raw)
 	switch rawValue.Kind() {
-	case reflect.Int:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return rawValue.Int()
-	case reflect.Int8:
-		return rawValue.Int()
-	case reflect.Int16:
-		return rawValue.Int()
-	case reflect.Int32:
-		return rawValue.Int()
-	case reflect.Float32:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return rawValue.Uint()
+	case reflect.Float32, reflect.Float64:
 		return rawValue.Float()
-	case reflect.Uint:
-		return rawValue.Uint()
-	case reflect.Uint8:
-		return rawValue.Uint()
-	case reflect.Uint16:
-		return rawValue.Uint()
-	case reflect.Uint32:
-		return rawValue.Uint()
 	default:
 		return raw
 	}
@@ -460,9 +448,15 @@ func ConvertToFloat64(val interface{}) (float64, error) {
 	switch v := val.(type) {
 	case float64:
 		return v, nil
+	case float32:
+		return float64(v), nil
 	case int:
 		return float64(v), nil
 	case int64:
+		return float64(v), nil
+	case uint:
+		return float64(v), nil
+	case uint64:
 		return float64(v), nil
 	default:
 		return 0, fmt.Errorf("invalid type for conversion to float64: %T, value: %+v", val, val)

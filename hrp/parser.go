@@ -97,7 +97,20 @@ func convertString(raw interface{}) string {
 }
 
 func (p *Parser) Parse(raw interface{}, variablesMapping map[string]interface{}) (interface{}, error) {
+	if raw == nil {
+		return nil, nil
+	}
+
 	rawValue := reflect.ValueOf(raw)
+
+	// 处理指针类型
+	for rawValue.Kind() == reflect.Ptr {
+		if rawValue.IsNil() {
+			return nil, nil
+		}
+		rawValue = rawValue.Elem()
+	}
+
 	switch rawValue.Kind() {
 	case reflect.String:
 		// json.Number
@@ -135,6 +148,24 @@ func (p *Parser) Parse(raw interface{}, variablesMapping map[string]interface{})
 			parsedMap[key] = parsedValue
 		}
 		return parsedMap, nil
+	case reflect.Struct:
+		parsedStruct := reflect.New(rawValue.Type()).Elem()
+		for i := 0; i < rawValue.NumField(); i++ {
+			field := rawValue.Field(i)
+			parsedValue, err := p.Parse(field.Interface(), variablesMapping)
+			if err != nil {
+				return raw, err
+			}
+			if parsedStruct.Field(i).CanSet() {
+				parsedStruct.Field(i).Set(reflect.ValueOf(parsedValue).Convert(parsedStruct.Field(i).Type()))
+			}
+		}
+
+		// 如果原始值是指针，返回指针
+		if reflect.TypeOf(raw).Kind() == reflect.Ptr {
+			return parsedStruct.Addr().Interface(), nil
+		}
+		return parsedStruct.Interface(), nil
 	default:
 		// other types, e.g. nil, int, float, bool
 		return builtin.TypeNormalization(raw), nil
